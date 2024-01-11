@@ -1,7 +1,7 @@
 # 隐藏数据
 data/NbSi/*
 
-
+.idea/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

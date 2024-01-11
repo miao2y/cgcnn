@@ -132,13 +132,13 @@ def collate_pool(dataset_list):
     crystal_atom_idx, batch_target = [], []
     batch_cif_ids = []
     base_idx = 0
-    for i, ((atom_fea, nbr_fea, nbr_fea_idx), target, cif_id)\
+    for i, ((atom_fea, nbr_fea, nbr_fea_idx), target, cif_id) \
             in enumerate(dataset_list):
         n_i = atom_fea.shape[0]  # number of atoms for this crystal
         batch_atom_fea.append(atom_fea)
         batch_nbr_fea.append(nbr_fea)
-        batch_nbr_fea_idx.append(nbr_fea_idx+base_idx)
-        new_idx = torch.LongTensor(np.arange(n_i)+base_idx)
+        batch_nbr_fea_idx.append(nbr_fea_idx + base_idx)
+        new_idx = torch.LongTensor(np.arange(n_i) + base_idx)
         crystal_atom_idx.append(new_idx)
         batch_target.append(target)
         batch_cif_ids.append(cif_id)
@@ -146,8 +146,8 @@ def collate_pool(dataset_list):
     return (torch.cat(batch_atom_fea, dim=0),
             torch.cat(batch_nbr_fea, dim=0),
             torch.cat(batch_nbr_fea_idx, dim=0),
-            crystal_atom_idx),\
-        torch.stack(batch_target, dim=0),\
+            crystal_atom_idx), \
+        torch.stack(batch_target, dim=0), \
         batch_cif_ids
 
 
@@ -157,6 +157,7 @@ class GaussianDistance(object):
 
     Unit: angstrom
     """
+
     def __init__(self, dmin, dmax, step, var=None):
         """
         Parameters
@@ -171,7 +172,7 @@ class GaussianDistance(object):
         """
         assert dmin < dmax
         assert dmax - dmin > step
-        self.filter = np.arange(dmin, dmax+step, step)
+        self.filter = np.arange(dmin, dmax + step, step)
         if var is None:
             var = step
         self.var = var
@@ -192,8 +193,8 @@ class GaussianDistance(object):
           Expanded distance matrix with the last dimension of length
           len(self.filter)
         """
-        return np.exp(-(distances[..., np.newaxis] - self.filter)**2 /
-                      self.var**2)
+        return np.exp(-(distances[..., np.newaxis] - self.filter) ** 2 /
+                      self.var ** 2)
 
 
 class AtomInitializer(object):
@@ -202,6 +203,7 @@ class AtomInitializer(object):
 
     !!! Use one AtomInitializer per dataset !!!
     """
+
     def __init__(self, atom_types):
         self.atom_types = set(atom_types)
         self._embedding = {}
@@ -238,6 +240,7 @@ class AtomCustomJSONInitializer(AtomInitializer):
     elem_embedding_file: str
         The path to the .json file
     """
+
     def __init__(self, elem_embedding_file):
         with open(elem_embedding_file) as f:
             elem_embedding = json.load(f)
@@ -245,6 +248,7 @@ class AtomCustomJSONInitializer(AtomInitializer):
                           in elem_embedding.items()}
         atom_types = set(elem_embedding.keys())
         super(AtomCustomJSONInitializer, self).__init__(atom_types)
+        print("Embeddings:")
         for key, value in elem_embedding.items():
             self._embedding[key] = np.array(value, dtype=float)
 
@@ -297,6 +301,7 @@ class CIFData(Dataset):
     target: torch.Tensor shape (1, )
     cif_id: str or int
     """
+
     def __init__(self, root_dir, max_num_nbr=12, radius=8, dmin=0, step=0.2,
                  random_seed=123):
         self.root_dir = root_dir
@@ -321,14 +326,20 @@ class CIFData(Dataset):
     def __getitem__(self, idx):
         cif_id, target = self.id_prop_data[idx]
         crystal = Structure.from_file(os.path.join(self.root_dir,
-                                                   cif_id+'.cif'))
+                                                   cif_id + '.cif'))
         atom_fea = np.vstack([self.ari.get_atom_fea(crystal[i].specie.number)
                               for i in range(len(crystal))])
         atom_fea = torch.Tensor(atom_fea)
+        print("原子数：", len(crystal))
+        print("邻居数：", self.max_num_nbr)
+
         all_nbrs = crystal.get_all_neighbors(self.radius, include_index=True)
         all_nbrs = [sorted(nbrs, key=lambda x: x[1]) for nbrs in all_nbrs]
         nbr_fea_idx, nbr_fea = [], []
+        count = 0
         for nbr in all_nbrs:
+            # print("对于这个原子所有边的距离：", list(map(lambda x: x[1],
+            #                                             nbr[:self.max_num_nbr])))
             if len(nbr) < self.max_num_nbr:
                 warnings.warn('{} not find enough neighbors to build graph. '
                               'If it happens frequently, consider increase '
@@ -343,10 +354,27 @@ class CIFData(Dataset):
                                             nbr[:self.max_num_nbr])))
                 nbr_fea.append(list(map(lambda x: x[1],
                                         nbr[:self.max_num_nbr])))
+
+            # print(nbr_fea)
+            # count = count + 1
+            # if count == 2:
+            # print(torch.Tensor(nbr_fea).shape)
+            # exit(0)
         nbr_fea_idx, nbr_fea = np.array(nbr_fea_idx), np.array(nbr_fea)
+        # print("atom_fea.shape", torch.Tensor(atom_fea).shape)
+        # print("nbr_fea.shape", torch.Tensor(nbr_fea).shape)
+        # print("nbr_fea_idx.shape", torch.Tensor(nbr_fea_idx).shape)
+        print(nbr_fea)
         nbr_fea = self.gdf.expand(nbr_fea)
         atom_fea = torch.Tensor(atom_fea)
+        # print("atom_fea.shape", atom_fea.shape)
         nbr_fea = torch.Tensor(nbr_fea)
         nbr_fea_idx = torch.LongTensor(nbr_fea_idx)
         target = torch.Tensor([float(target)])
+        # print(atom_fea)
+
+        # print(nbr_fea.shape)
+        # print(nbr_fea_idx)
+        print(nbr_fea_idx)
+        exit(0)
         return (atom_fea, nbr_fea, nbr_fea_idx), target, cif_id

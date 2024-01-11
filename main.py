@@ -14,6 +14,7 @@ from sklearn import metrics
 from torch.autograd import Variable
 from torch.optim.lr_scheduler import MultiStepLR
 
+from cgcnn.NbSiData import NbSiData
 from cgcnn.data import CIFData
 from cgcnn.data import collate_pool, get_train_val_test_loader
 from cgcnn.model import CrystalGraphConvNet
@@ -92,7 +93,7 @@ def main():
     global args, best_mae_error
 
     # load data
-    dataset = CIFData(*args.data_options)
+    dataset = NbSiData(*args.data_options)
     collate_fn = collate_pool
     train_loader, val_loader, test_loader = get_train_val_test_loader(
         dataset=dataset,
