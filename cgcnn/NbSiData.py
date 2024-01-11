@@ -97,7 +97,7 @@ class NbSiData(Dataset):
                               'If it happens frequently, consider increase '
                               'radius.'.format(data_id))
                 nbr_fea_idx.append(neighbour_ids + [0] * (self.max_num_nbr - len(weights)))
-                nbr_fea.append(weights + [1.] * (self.max_num_nbr - len(weights)))
+                nbr_fea.append(weights + [self.dmax + 1.] * (self.max_num_nbr - len(weights)))
             else:
                 nbr_fea.append(weights)
                 nbr_fea_idx.append(neighbour_ids)
